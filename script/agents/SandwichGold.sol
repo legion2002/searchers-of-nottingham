@@ -15,8 +15,12 @@ contract SandwichGold is BasePlayer {
         uint8 assetCount
     ) BasePlayer(game, playerIdx, playerCount, assetCount) {}
 
-    function max(uint256 a, uint256 b) internal pure returns (uint256) {
+    function maxNum(uint256 a, uint256 b) internal pure returns (uint256) {
         return a > b ? a : b;
+    }
+
+    function minNum(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
     }
 
     // Find the good (non-gold asset) we have the lowest balance of and not 0.
@@ -192,16 +196,10 @@ contract SandwichGold is BasePlayer {
                 GAME.buy(GOLD_IDX, assetIndexMax, 64e18);
                 bidAmount = GAME.balanceOf(PLAYER_IDX, GOLD_IDX);
             } else {
-                // Else bid 80% of sandwich profits
-                // bidAmount = max(GAME.balanceOf(PLAYER_IDX, GOLD_IDX) * )
-                bidAmount = max(GAME.balanceOf(PLAYER_IDX, GOLD_IDX) * 5 / 100, 7 * 10**16);
+                bidAmount = (totalSandwichProfit * 90) / 100;
             }
         }
 
         return bidAmount;
     }
 }
-
-// Without sandwich
-// 0.3121
-// 0.3527
