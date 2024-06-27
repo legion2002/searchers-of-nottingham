@@ -24,8 +24,8 @@ contract BigSandwich is CheapBuyer {
         }
     }
 
-    function buildBlock(PlayerBundle[] memory bundles)
-        external virtual override returns (uint256 goldBid)
+    function buildBlock(PlayerBundle[] calldata bundles)
+        public virtual override returns (uint256 goldBid)
     {
         // Check which asset everyone is selling the most of.
         for (uint8 playerIdx = 0; playerIdx < bundles.length; ++playerIdx) {

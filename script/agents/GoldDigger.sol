@@ -36,7 +36,7 @@ contract GoldDigger is BasePlayer {
 
     function createBundle(
         uint8 /* builderIdx */
-    ) external virtual override returns (PlayerBundle memory bundle) {
+    ) public virtual override returns (PlayerBundle memory bundle) {
         if (_crossedThreshold()) {
             bundle.swaps = new SwapSell[](GOODS_COUNT);
             for (uint8 i; i < GOODS_COUNT; ++i) {
@@ -59,8 +59,8 @@ contract GoldDigger is BasePlayer {
     }
 
     function buildBlock(
-        PlayerBundle[] memory bundles
-    ) external virtual override returns (uint256 goldBid) {
+        PlayerBundle[] calldata bundles
+    ) public virtual override returns (uint256 goldBid) {
         if (!_crossedThreshold()) {
             return 0;
         }

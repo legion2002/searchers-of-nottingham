@@ -54,7 +54,7 @@ contract PerfectGold is BasePlayer {
 
     function createBundle(
         uint8 /* builderIdx */
-    ) external virtual override returns (PlayerBundle memory bundle) {
+    ) public virtual override returns (PlayerBundle memory bundle) {
         if (GAME.round() == 32) {
             bundle.swaps = new SwapSell[](1);
             (uint8 assetIndexMax, ) = _getCheapestAssetForGold(
@@ -78,8 +78,8 @@ contract PerfectGold is BasePlayer {
     }
 
     function buildBlock(
-        PlayerBundle[] memory bundles
-    ) external virtual override returns (uint256 goldBid) {
+        PlayerBundle[] calldata bundles
+    ) public virtual override returns (uint256 goldBid) {
         uint256 bidAmount = 0;
         uint256 goldReceivedIfFirst = 0;
 
