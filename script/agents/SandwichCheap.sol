@@ -84,30 +84,36 @@ contract SandwichCheap is AssetMarket, IPlayer {
                 fromAmount: GAME.balanceOf(PLAYER_IDX, GOLD_IDX)
             });
         } else {
-            uint8 first = FIRST_GOOD_IDX;
-            uint8 second = FIRST_GOOD_IDX + 1;
+            bundle = PlayerBundle({swaps: new SwapSell[](1)});
+            bundle.swaps[0] = SwapSell({
+                fromAssetIdx: GOLD_IDX,
+                toAssetIdx: FIRST_GOOD_IDX,
+                fromAmount: GAME.balanceOf(PLAYER_IDX, GOLD_IDX) + 1000
+            });
+            // uint8 first = FIRST_GOOD_IDX;
+            // uint8 second = FIRST_GOOD_IDX + 1;
 
-            uint256 initialFirst = GAME.balanceOf(PLAYER_IDX, first);
-            uint256 initialSecond = GAME.balanceOf(PLAYER_IDX, second);
+            // uint256 initialFirst = GAME.balanceOf(PLAYER_IDX, first);
+            // uint256 initialSecond = GAME.balanceOf(PLAYER_IDX, second);
 
-            bundle = PlayerBundle({swaps: new SwapSell[](12)});
+            // bundle = PlayerBundle({swaps: new SwapSell[](12)});
 
-            for (uint256 i; i < bundle.swaps.length; i++) {
-                bundle.swaps[i] = SwapSell({
-                    fromAssetIdx: i % 2 == 0 ? first : second,
-                    toAssetIdx: i % 2 == 0 ? second : first,
-                    fromAmount: GAME.balanceOf(
-                        PLAYER_IDX,
-                        i % 2 == 0 ? first : second
-                    )
-                });
-            }
+            // for (uint256 i; i < bundle.swaps.length; i++) {
+            //     bundle.swaps[i] = SwapSell({
+            //         fromAssetIdx: i % 2 == 0 ? first : second,
+            //         toAssetIdx: i % 2 == 0 ? second : first,
+            //         fromAmount: GAME.balanceOf(
+            //             PLAYER_IDX,
+            //             i % 2 == 0 ? first : second
+            //         )
+            //     });
+            // }
 
-            require(
-                initialFirst <= GAME.balanceOf(PLAYER_IDX, first) &&
-                    initialSecond <= GAME.balanceOf(PLAYER_IDX, second),
-                "Loss"
-            );
+            // require(
+            //     initialFirst <= GAME.balanceOf(PLAYER_IDX, first) &&
+            //         initialSecond <= GAME.balanceOf(PLAYER_IDX, second),
+            //     "Loss"
+            // );
         }
     }
 
@@ -135,76 +141,112 @@ contract SandwichCheap is AssetMarket, IPlayer {
         }
     }
 
-    function getMostBought(
+    function findKingAsset(
         PlayerBundle[] calldata bundles
-    ) internal returns (uint8 assetBoughtMost) {
-        _storeReserves(GAME.marketState());
+    ) internal returns (uint8 kingAssetFound) {
+        int256[] memory totalProfits = new int256[](ASSET_COUNT);
 
-        int256[] memory assetAmounts = new int256[](ASSET_COUNT);
+        // For all assets
+        for (
+            uint8 candidateAsset;
+            candidateAsset < ASSET_COUNT;
+            candidateAsset++
+        ) {
+            _storeReserves(GAME.marketState());
 
-        // Simulating all bundles
-        for (uint8 playerIdx = 0; playerIdx < bundles.length; ++playerIdx) {
-            if (playerIdx == PLAYER_IDX) {
-                // Skip our bundle.
-                continue;
+            uint256 initialCandidateAssetAmount = 0;
+
+            // Simulate selling all assets for this asset index
+            for (uint8 j; j < ASSET_COUNT; ++i) {
+                initialCandidateAssetAmount += _sell(
+                    j,
+                    candidateAsset,
+                    GAME.balanceOf(PLAYER_IDX, j)
+                );
             }
 
-            // For each bundle
-            PlayerBundle memory bundle = bundles[playerIdx];
+            uint256 currentCandidateAssetAmount = initialCandidateAssetAmount;
 
-            // Test each swap
-            bytes memory testNull = abi.encode(bundle);
-
-            if (testNull.length == 0) {
-                continue;
-            }
-
-            bool[] memory skipSwap = new bool[](bundle.swaps.length);
-
-            for (uint256 i; i < bundle.swaps.length; i++) {
-                SwapSell memory swap = bundle.swaps[i];
-                try
-                    GAME.quoteSell(
-                        swap.fromAssetIdx,
-                        swap.toAssetIdx,
-                        swap.fromAmount
-                    )
-                returns (uint256 toAmount) {
-                    assetAmounts[swap.toAssetIdx] += int256(toAmount);
-                    assetAmounts[swap.fromAssetIdx] -= int256(swap.fromAmount);
-                } catch {
-                    skipSwap[i] = true;
-                }
-            }
-
-            uint8 assetIndexMax = uint8(findMaxInList(assetAmounts));
-
-            // Sell everything we have for sandwich asset
-            for (uint8 i; i <= GOODS_COUNT; i++) {
-                _sell(i, assetIndexMax, GAME.balanceOf(PLAYER_IDX, i));
-            }
-
-            // Simulate the bundle
-            for (uint8 i; i < bundle.swaps.length; i++) {
-                if (skipSwap[i]) {
+            // Simulate all bundles with sandwiches attached
+            for (uint8 playerIdx = 0; playerIdx < bundles.length; ++playerIdx) {
+                if (playerIdx == PLAYER_IDX) {
+                    // Skip our bundle.
                     continue;
                 }
 
-                _sell(
-                    bundle.swaps[i].fromAssetIdx,
-                    bundle.swaps[i].toAssetIdx,
-                    bundle.swaps[i].fromAmount
-                );
+                int256[] memory sellAmounts = new int256[](ASSET_COUNT);
+
+                // For each bundle
+                PlayerBundle memory bundle = bundles[playerIdx];
+
+                // Check if empty
+                bytes memory testNull = abi.encode(bundle);
+
+                // If bundle empty, continue normally
+                if (testNull.length == 0) {
+                    continue;
+                }
+
+                bool skipBundle;
+
+                for (uint256 i; i < bundle.swaps.length; i++) {
+                    SwapSell memory swap = bundle.swaps[i];
+                    try
+                        _quoteSell(
+                            swap.fromAssetIdx,
+                            swap.toAssetIdx,
+                            swap.fromAmount
+                        )
+                    returns (uint256 toAmount) {
+                        sellAmounts[swap.toAssetIdx] += int256(toAmount);
+                        sellAmounts[swap.fromAssetIdx] -= int256(
+                            swap.fromAmount
+                        );
+                    } catch {
+                        skipBundle = true;
+                    }
+                }
+
+                uint8 assetIndexMax = uint8(findMaxInList(sellAmounts));
+
+                // If bundle can be executed completely
+                if (!skipBundle) {
+                    // Sell our candidate asset for assetIndexMax
+                    uint256 sandwichAssetTempAmount = _sell(
+                        candidateAsset,
+                        assetIndexMax,
+                        currentCandidateAssetAmount
+                    );
+
+                    // Simulate the bundle
+                    for (uint8 i; i < bundle.swaps.length; i++) {
+                        _sell(
+                            bundle.swaps[i].fromAssetIdx,
+                            bundle.swaps[i].toAssetIdx,
+                            bundle.swaps[i].fromAmount
+                        );
+                    }
+
+                    // Sell the assetIndexMax back to candidate asset
+                    currentCandidateAssetAmount = _sell(
+                        assetIndexMax,
+                        candidateAsset,
+                        sandwichAssetTempAmount
+                    );
+                }
             }
+
+            totalProfits[candidateAsset] = currentCandidateAssetAmount >
+                initialCandidateAssetAmount
+                ? _sell(
+                    candidateAsset,
+                    GOLD_IDX,
+                    currentCandidateAssetAmount - initialCandidateAssetAmount
+                )
+                : 0;
         }
 
-        assetBoughtMost = uint8(findMaxInList(assetAmounts));
-
-        // if (assetAmounts[GOLD_IDX] < 0) {
-        //     buyGoldFirst = true;
-        // } else {
-        //     buyGoldFirst = false;
-        // }
+        kingAssetFound = uint8(findMaxInList(totalProfits));
     }
 
     function sandwichBundle(
@@ -268,18 +310,10 @@ contract SandwichCheap is AssetMarket, IPlayer {
     ) public virtual override returns (uint256 goldBid) {
         uint256 bidAmount = 0;
 
-        // uint256 initialGoldReserves = GAME.balanceOf(PLAYER_IDX, GOLD_IDX);
-
-        kingAsset = getMostBought(bundles);
-
-        uint256 kingReceivedForGoldInitial = GAME.quoteSell(
-            GOLD_IDX,
-            kingAsset,
-            GAME.balanceOf(PLAYER_IDX, GOLD_IDX)
-        );
+        kingAsset = findKingAsset(bundles);
 
         // 1. Sell everything we have first for king asset
-        for (uint8 i; i <= GOODS_COUNT; ++i) {
+        for (uint8 i; i < ASSET_COUNT; ++i) {
             GAME.sell(i, kingAsset, GAME.balanceOf(PLAYER_IDX, i));
         }
 
@@ -314,22 +348,26 @@ contract SandwichCheap is AssetMarket, IPlayer {
 
             bidAmount = GAME.balanceOf(PLAYER_IDX, GOLD_IDX);
         } else {
-            // Find the total profit from this trade
-            uint256 totalProfit = GAME.balanceOf(PLAYER_IDX, kingAsset) >
-                initialKingAmount
-                ? GAME.balanceOf(PLAYER_IDX, kingAsset) - initialKingAmount
-                : 0;
+            uint256 finalKingAmount = GAME.balanceOf(PLAYER_IDX, kingAsset);
 
-            if (totalProfit == 0) {
-                bidAmount = 1;
-                GAME.buy(kingAsset, GOLD_IDX, 1);
+            if (finalKingAmount > initialKingAmount) {
+                // We are in profit, buy the required gold first
+                bidAmount = GAME.sell(
+                    kingAsset,
+                    GOLD_IDX,
+                    ((finalKingAmount - initialKingAmount) * 99) / 100
+                );
+
+                // TODO: should we do this?
+                // Sell the current asset for the cheapest asset
+                // GAME.sell(
+                //     kingAsset,
+                //     cheapestAssetIndex,
+                //     GAME.balanceOf(PLAYER_IDX, GOLD_IDX)
+                // );
             } else {
-                // Bid everything except 1 wei of profit
-                bidAmount = GAME.sell(kingAsset, GOLD_IDX, totalProfit);
+                bidAmount = 0;
             }
-
-            // TODO: Add gold price loss to total profit
-            // 0.0629e4
         }
 
         return bidAmount;
