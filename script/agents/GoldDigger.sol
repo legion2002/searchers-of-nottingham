@@ -65,7 +65,7 @@ contract GoldDigger is BasePlayer {
             return 0;
         }
 
-        uint256[] memory assetAmounts = new uint256[](ASSET_COUNT);
+        // uint256[] memory assetAmounts = new uint256[](ASSET_COUNT);
 
         uint256 assetAmountMax = 0;
         uint8 assetIndexMax = 0;
