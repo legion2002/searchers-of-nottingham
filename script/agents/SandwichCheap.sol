@@ -4,6 +4,8 @@ pragma solidity ^0.8;
 import "src/game/Markets.sol";
 import "./BasePlayer.sol";
 
+import "forge-std/console2.sol";
+
 // Player that buys whatever good we can get the most of each round.
 contract SandwichCheap is AssetMarket, IPlayer {
     // The game instance.
@@ -196,7 +198,7 @@ contract SandwichCheap is AssetMarket, IPlayer {
             }
         }
 
-        assetBoughtMost = uint8(findMinInList(assetAmounts));
+        assetBoughtMost = uint8(findMaxInList(assetAmounts));
 
         // if (assetAmounts[GOLD_IDX] < 0) {
         //     buyGoldFirst = true;
@@ -216,6 +218,7 @@ contract SandwichCheap is AssetMarket, IPlayer {
 
         if (testNull.length == 0) {
             GAME.settleBundle(playerIdx, bundle);
+            return;
         }
 
         for (uint256 i; i < bundle.swaps.length; i++) {
@@ -237,6 +240,7 @@ contract SandwichCheap is AssetMarket, IPlayer {
         uint8 assetIndexMax = uint8(findMaxInList(assetAmounts));
 
         if (salmonellaBundle) {
+            GAME.settleBundle(playerIdx, bundle);
             return;
         }
 
@@ -265,8 +269,6 @@ contract SandwichCheap is AssetMarket, IPlayer {
         uint256 bidAmount = 0;
         uint256 kingReceivedIfFirst = 0;
 
-        console.log("reached here====================================");
-
         kingAsset = getMostBought(bundles);
 
         // 1. Sell everything we have first for king asset
@@ -291,37 +293,36 @@ contract SandwichCheap is AssetMarket, IPlayer {
         }
 
         // Get the cheapest asset
-        (uint8 assetIndexMax, ) = _getCheapestAsset(GAME.marketState());
-
-        // Sell everything we have for the cheapest asset
-        for (uint8 i; i <= GOODS_COUNT; ++i) {
-            GAME.sell(i, assetIndexMax, GAME.balanceOf(PLAYER_IDX, i));
-        }
+        (
+            uint8 cheapestAssetIndex,
+            uint256 cheapestAssetAmount
+        ) = _getCheapestAsset(GAME.marketState());
 
         // 3. If enough asset to win then bid everything else
-        if (GAME.balanceOf(PLAYER_IDX, assetIndexMax) > 64e18) {
+        if (cheapestAssetAmount > 64e18) {
+            // Sell everything we have for the cheapest asset
+            GAME.buy(kingAsset, cheapestAssetIndex, 64e18);
+
             GAME.sell(
-                assetIndexMax,
+                kingAsset,
                 GOLD_IDX,
-                GAME.balanceOf(PLAYER_IDX, assetIndexMax) - 64e18
+                GAME.balanceOf(PLAYER_IDX, kingAsset)
             );
 
             bidAmount = GAME.balanceOf(PLAYER_IDX, GOLD_IDX);
         } else {
+            // Find the total profit from this trade
             uint256 totalProfit = GAME.balanceOf(PLAYER_IDX, kingAsset) >
                 initialKingAmount
                 ? GAME.balanceOf(PLAYER_IDX, kingAsset) - initialKingAmount
                 : 0;
 
-            console.log("totalProfit", totalProfit);
-
             // Bid everything except 1 wei of profit
-            bidAmount = (totalProfit * 99) / 100;
-
-            // TODO: Currently buying at the end, check if it is better to buy at the beginning
-            if (GAME.balanceOf(PLAYER_IDX, GOLD_IDX) < bidAmount) {
-                GAME.buy(kingAsset, GOLD_IDX, bidAmount);
-            }
+            bidAmount = GAME.sell(
+                kingAsset,
+                GOLD_IDX,
+                (totalProfit * 99) / 100
+            );
         }
 
         return bidAmount;

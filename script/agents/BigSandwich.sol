@@ -3,6 +3,7 @@ pragma solidity ^0.8;
 
 import './CheapBuyer.sol';
 
+
 // Player that buys whatever good we can get the most of each round.
 contract BigSandwich is CheapBuyer {
 
