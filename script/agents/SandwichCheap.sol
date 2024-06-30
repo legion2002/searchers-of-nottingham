@@ -33,7 +33,7 @@ contract SandwichCheap is AssetMarket, IPlayer {
         MAX_SWAPS_PER_BUNDLE = ASSET_COUNT * (ASSET_COUNT - 1);
     }
 
-    uint8 kingAsset;
+    uint8 public kingAsset;
 
     function _getCheapestAsset(
         uint256[] memory reserves
@@ -267,17 +267,20 @@ contract SandwichCheap is AssetMarket, IPlayer {
         PlayerBundle[] calldata bundles
     ) public virtual override returns (uint256 goldBid) {
         uint256 bidAmount = 0;
-        uint256 kingReceivedIfFirst = 0;
+
+        // uint256 initialGoldReserves = GAME.balanceOf(PLAYER_IDX, GOLD_IDX);
 
         kingAsset = getMostBought(bundles);
 
+        uint256 kingReceivedForGoldInitial = GAME.quoteSell(
+            GOLD_IDX,
+            kingAsset,
+            GAME.balanceOf(PLAYER_IDX, GOLD_IDX)
+        );
+
         // 1. Sell everything we have first for king asset
-        for (uint8 i; i < GOODS_COUNT; ++i) {
-            kingReceivedIfFirst += GAME.sell(
-                FIRST_GOOD_IDX + i,
-                kingAsset,
-                GAME.balanceOf(PLAYER_IDX, FIRST_GOOD_IDX + i)
-            );
+        for (uint8 i; i <= GOODS_COUNT; ++i) {
+            GAME.sell(i, kingAsset, GAME.balanceOf(PLAYER_IDX, i));
         }
 
         uint256 initialKingAmount = GAME.balanceOf(PLAYER_IDX, kingAsset);
@@ -317,12 +320,16 @@ contract SandwichCheap is AssetMarket, IPlayer {
                 ? GAME.balanceOf(PLAYER_IDX, kingAsset) - initialKingAmount
                 : 0;
 
-            // Bid everything except 1 wei of profit
-            bidAmount = GAME.sell(
-                kingAsset,
-                GOLD_IDX,
-                (totalProfit * 99) / 100
-            );
+            if (totalProfit == 0) {
+                bidAmount = 1;
+                GAME.buy(kingAsset, GOLD_IDX, 1);
+            } else {
+                // Bid everything except 1 wei of profit
+                bidAmount = GAME.sell(kingAsset, GOLD_IDX, totalProfit);
+            }
+
+            // TODO: Add gold price loss to total profit
+            // 0.0629e4
         }
 
         return bidAmount;
