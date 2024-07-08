@@ -1,4 +1,4 @@
-> 🚨 This repo will be updated regularly for bug fixes, if game balance is tweaked, and to add top agents from seasons. Try to pull every now and then.
+Writeup about the winning agent - https://medium.com/@0xtanishk/how-to-win-the-searchers-of-nottingham-ctf-688b4deed6f3
 
 # Searchers of Nottingham
 
