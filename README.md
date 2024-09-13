@@ -1,4 +1,4 @@
-Writeup about the winning agent - https://medium.com/@0xtanishk/how-to-win-the-searchers-of-nottingham-ctf-688b4deed6f3
+Writeup about my winning agent - https://medium.com/@0xtanishk/how-to-win-the-searchers-of-nottingham-ctf-688b4deed6f3
 
 # Searchers of Nottingham
 
